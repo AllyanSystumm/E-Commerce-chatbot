@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:15-alpine
+    network_mode: host
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: leavemealone
+      POSTGRES_DB: aion_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/schema.sql:/docker-entrypoint-initdb.d/1-schema.sql
+      - ./backend/seed_data.sql:/docker-entrypoint-initdb.d/2-seed_data.sql
+
+  backend:
+    build: ./backend
+    network_mode: host
+    environment:
+      - DATABASE_URL=postgresql://postgres:leavemealone@localhost:5432/aion_db
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    env_file:
+      - .env
+
+  bff:
+    build: ./frontend/nestjs-api
+    network_mode: host
+    environment:
+      - BACKEND_URL=http://localhost:8000/api/v1/chat/chat
+    depends_on:
+      - backend
+
+  ui:
+    build: ./frontend/nextjs-app
+    network_mode: host
+    environment:
+      - NEXT_PUBLIC_BFF_URL=http://localhost:3001/chat
+    depends_on:
+      - bff
+
+volumes:
+  postgres_data:
